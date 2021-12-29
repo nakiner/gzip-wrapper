@@ -2,6 +2,7 @@ package filer
 
 import (
 	"bytes"
+	"io"
 	"sync"
 )
 
@@ -37,4 +38,10 @@ func (b *Buffer) Len() int {
 	b.m.Lock()
 	defer b.m.Unlock()
 	return b.b.Len()
+}
+
+func (b *Buffer) WriteTo(w io.Writer) (n int64, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.WriteTo(w)
 }

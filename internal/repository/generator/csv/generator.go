@@ -14,8 +14,7 @@ func NewGenerator() repository.Repository {
 	return &service{}
 }
 
-func (s *service) GenerateFile(w *filer.File) error {
-	size := 1 * 1024 // 1 mB
+func (s *service) GenerateFile(w *filer.File, size int) error {
 	for i := 0; i < size; i++ {
 		if _, err := w.Content.Write(RandStringBytes(1024)); err != nil {
 			return err

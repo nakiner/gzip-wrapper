@@ -8,5 +8,5 @@ type service struct {
 }
 
 type Repository interface {
-	GenerateFile(file *filer.File) error
+	GenerateFile(file *filer.File, size int) error
 }

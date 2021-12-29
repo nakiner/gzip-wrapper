@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/nakiner/gzip-wrapper/internal/repository/filer"
-	"io"
 	"log"
 	"sync"
 	"time"
@@ -23,24 +22,25 @@ func (s *ZipperService) Compress(count int, target *bytes.Buffer, files chan *fi
 
 	for i := 0; i < count; i++ {
 		wg.Add(1)
-		go func(begin time.Time) {
+		go func() {
 			defer wg.Done()
 			defer mu.Unlock()
 			file := <-files
+			begin := time.Now()
 			size := file.Content.Len()
 			mu.Lock()
 			f, err := w.Create(file.Name)
 			if err != nil {
 				log.Fatal(err)
 			}
-			if _, err = io.Copy(f, file.Content); err != nil {
+			if _, err = file.Content.WriteTo(f); err != nil {
 				log.Fatal(err)
 			}
 			defer func() {
 				str := fmt.Sprintf("compress %s finish, took %s, size: %d KB", file.Name, time.Since(begin), size/1024)
 				fmt.Println(str)
 			}()
-		}(time.Time{})
+		}()
 	}
 
 	wg.Wait()

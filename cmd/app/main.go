@@ -12,11 +12,14 @@ import (
 	"github.com/nakiner/gzip-wrapper/internal/store/s3"
 	"github.com/nakiner/gzip-wrapper/tools/logging"
 	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
 
 func main() {
+	pp, _ := os.Create("default.pprof")
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -59,33 +62,40 @@ func main() {
 	//init concurrent file generator
 	for i := 0; i < count; i++ {
 		wg.Add(1)
-		go func(begin time.Time) {
+		go func() {
 			defer wg.Done()
 			byter := <-byteCh
-			if err = gen.GenerateFile(byter); err != nil {
+			begin := time.Now()
+			if err = gen.GenerateFile(byter, 1024*100); err != nil {
 				level.Error(logger).Log("err", err)
 			} else {
 				str := fmt.Sprintf("generate %s finish, took %s, size: %d KB", byter.Name, time.Since(begin), byter.Content.Len()/1024)
 				fmt.Println(str)
 				byteGenCh <- byter
 			}
-		}(time.Now())
+		}()
 	}
 
 	wg.Add(1)
 	compr := make(chan bool, 1)
 	go func() {
 		defer wg.Done()
+		begin := time.Now()
 		tar.Compress(count, &archive, byteGenCh)
 		compr <- true
+		defer func() {
+			str := fmt.Sprintf("compressor finish, took %s, size: %d KB", time.Since(begin), archive.Len()/1024)
+			fmt.Println(str)
+		}()
 	}()
 
 	// init archive uploader
 	wg.Add(1)
-	go func(begin time.Time) {
+	go func() {
 		defer wg.Done()
 		<-compr
 		size := archive.Len()
+		begin := time.Now()
 		if err = s3Repository.Upload(ctx, &archive, "archive.tar.gz"); err != nil {
 			level.Error(logger).Log("err", err)
 		}
@@ -93,7 +103,7 @@ func main() {
 			str := fmt.Sprintf("upload finish, took %s, size: %d KB", time.Since(begin), size/1024)
 			fmt.Println(str)
 		}()
-	}(time.Now())
+	}()
 
 	// push files
 	for i := 0; i < count; i++ {
@@ -106,5 +116,7 @@ func main() {
 	}
 
 	wg.Wait()
+	pprof.WriteHeapProfile(pp)
+	pp.Close()
 	os.Exit(0)
 }
