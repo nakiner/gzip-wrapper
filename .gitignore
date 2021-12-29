@@ -1,0 +1,11 @@
+bin
+.idea
+coverage.xml
+coverage.txt
+main
+cmd/test
+config.toml
+.DS_Store
+protoc-gen.bat
+*.mmdb
+.vscode
