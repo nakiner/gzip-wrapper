@@ -32,3 +32,9 @@ func (b *Buffer) Bytes() []byte {
 	defer b.m.Unlock()
 	return b.b.Bytes()
 }
+
+func (b *Buffer) Len() int {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Len()
+}

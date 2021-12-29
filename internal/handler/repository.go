@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"github.com/nakiner/gzip-wrapper/internal/handler/gzip"
 	zp "github.com/nakiner/gzip-wrapper/internal/handler/zip"
 	"github.com/nakiner/gzip-wrapper/internal/repository/filer"
 )
@@ -15,11 +16,11 @@ type service struct {
 
 type Repository interface {
 	Zipper() Compressor
-	//Tarball() Compressor
+	Tarball() Compressor
 }
 
 type Compressor interface {
-	Compress(target *bytes.Buffer, files chan *filer.File)
+	Compress(count int, target *bytes.Buffer, files chan *filer.File)
 }
 
 func NewCompressor() Repository {
@@ -30,6 +31,6 @@ func (s *service) Zipper() Compressor {
 	return &zp.ZipperService{}
 }
 
-//func (s *service) Tarball() Compressor {
-//	return &gzip.TarballService{}
-//}
+func (s *service) Tarball() Compressor {
+	return &gzip.TarballService{}
+}

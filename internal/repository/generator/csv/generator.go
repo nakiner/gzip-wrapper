@@ -1,7 +1,6 @@
 package csv
 
 import (
-	"fmt"
 	"github.com/nakiner/gzip-wrapper/internal/repository"
 	"github.com/nakiner/gzip-wrapper/internal/repository/filer"
 	"math/rand"
@@ -16,17 +15,12 @@ func NewGenerator() repository.Repository {
 }
 
 func (s *service) GenerateFile(w *filer.File) error {
-	fmt.Println("start generate file")
 	size := 1 * 1024 // 1 mB
-
 	for i := 0; i < size; i++ {
 		if _, err := w.Content.Write(RandStringBytes(1024)); err != nil {
 			return err
 		}
 	}
-
-	fmt.Println("done generate file")
-
 	return nil
 }
 
