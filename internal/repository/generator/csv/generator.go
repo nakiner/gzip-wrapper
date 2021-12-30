@@ -3,7 +3,10 @@ package csv
 import (
 	"github.com/nakiner/gzip-wrapper/internal/repository"
 	"github.com/nakiner/gzip-wrapper/internal/repository/filer"
+	"io"
 	"math/rand"
+	"os"
+	"path/filepath"
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -29,4 +32,28 @@ func RandStringBytes(n int) []byte {
 		b[i] = letterBytes[rand.Intn(len(letterBytes))]
 	}
 	return b
+}
+
+func (s *service) ReadFile(w *filer.File) error {
+	data, err := os.Open(w.Name)
+	defer data.Close()
+	if err != nil {
+		return err
+	}
+	if _, err = io.Copy(w.Content, data); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *service) ListFiles(dir string) []string {
+	var res []string
+	filepath.Walk(dir, func(file string, fi os.FileInfo, _ error) error {
+		if !fi.IsDir() {
+			res = append(res, filepath.FromSlash(file))
+		}
+		return nil
+	})
+
+	return res
 }

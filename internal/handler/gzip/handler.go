@@ -29,13 +29,15 @@ func (s *TarballService) Compress(count int, target *bytes.Buffer, files chan *f
 			defer wg.Done()
 			defer mu.Unlock()
 			file := <-files
-			begin := time.Now()
 			size := file.Content.Len()
 			header := tar.Header{
-				Name: file.Name,
-				Size: int64(file.Content.Len()),
+				Name:    file.Name,
+				Size:    int64(file.Content.Len()),
+				Mode:    0644,
+				ModTime: time.Now(),
 			}
 			mu.Lock()
+			begin := time.Now()
 			if err := tw.WriteHeader(&header); err != nil {
 				log.Fatal(err)
 			}

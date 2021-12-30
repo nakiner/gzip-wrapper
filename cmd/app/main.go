@@ -18,8 +18,6 @@ import (
 )
 
 func main() {
-	pp, _ := os.Create("default.pprof")
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -53,39 +51,66 @@ func main() {
 	//zipper := handler.NewCompressor().Zipper()
 	tar := handler.NewCompressor().Tarball()
 
-	count := 10
+	count := 0
 	var wg sync.WaitGroup
-	byteCh := make(chan *filer.File, count)
-	byteGenCh := make(chan *filer.File, count)
 	archive := bytes.Buffer{}
 
+	// push files
+	files := gen.ListFiles("./export")
+	count = len(files)
+	byteCh := make(chan *filer.File, count)
+	byteGenCh := make(chan *filer.File, count)
+	for _, filename := range files {
+		buf := filer.Buffer{}
+		file := filer.File{
+			Name:    filename,
+			Content: &buf,
+		}
+		byteCh <- &file
+	}
+
+	var genWg sync.WaitGroup
 	//init concurrent file generator
 	for i := 0; i < count; i++ {
 		wg.Add(1)
+		genWg.Add(1)
 		go func() {
 			defer wg.Done()
+			defer genWg.Done()
 			byter := <-byteCh
 			begin := time.Now()
-			if err = gen.GenerateFile(byter, 1024*100); err != nil {
+			if err = gen.ReadFile(byter); err != nil {
 				level.Error(logger).Log("err", err)
 			} else {
-				str := fmt.Sprintf("generate %s finish, took %s, size: %d KB", byter.Name, time.Since(begin), byter.Content.Len()/1024)
+				str := fmt.Sprintf("read %s finish, took %s, size: %d KB", byter.Name, time.Since(begin), byter.Content.Len()/1024)
 				fmt.Println(str)
 				byteGenCh <- byter
 			}
 		}()
 	}
 
+	go func() {
+		defer close(byteCh)
+		genWg.Wait()
+		pr, _ := os.Create("read.pprof")
+		pprof.WriteHeapProfile(pr)
+		pr.Close()
+	}()
+
 	wg.Add(1)
 	compr := make(chan bool, 1)
 	go func() {
 		defer wg.Done()
+		defer close(byteGenCh)
 		begin := time.Now()
 		tar.Compress(count, &archive, byteGenCh)
 		compr <- true
 		defer func() {
 			str := fmt.Sprintf("compressor finish, took %s, size: %d KB", time.Since(begin), archive.Len()/1024)
 			fmt.Println(str)
+			pc, _ := os.Create("compress.pprof")
+			pprof.WriteHeapProfile(pc)
+			pc.Close()
 		}()
 	}()
 
@@ -102,21 +127,12 @@ func main() {
 		defer func() {
 			str := fmt.Sprintf("upload finish, took %s, size: %d KB", time.Since(begin), size/1024)
 			fmt.Println(str)
+			pup, _ := os.Create("upload.pprof")
+			pprof.WriteHeapProfile(pup)
+			pup.Close()
 		}()
 	}()
 
-	// push files
-	for i := 0; i < count; i++ {
-		buf := filer.Buffer{}
-		file := filer.File{
-			Name:    fmt.Sprintf("text_%d.txt", i),
-			Content: &buf,
-		}
-		byteCh <- &file
-	}
-
 	wg.Wait()
-	pprof.WriteHeapProfile(pp)
-	pp.Close()
 	os.Exit(0)
 }
